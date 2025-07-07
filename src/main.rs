@@ -20,31 +20,28 @@ fn main() {
         .exit_on_esc(true)
         .build()
         .unwrap();
-/*
+
     thread::spawn(move || {
         let mut point1 = simulation::Point::new([100.0, 100.0], 1.0);
         thread::sleep(std::time::Duration::from_millis(2000));
         loop {
-            
+            point1.apply_all();
+            point1.update();
+            point1.handle_edge_collision(window_size.clone());
             tx.send(point1.clone()).unwrap();
             thread::sleep(std::time::Duration::from_millis(16));
         }
     });
-*/
-    let mut point1 = simulation::Point::new([100.0, 100.0], 1.0);
-    while let Some(event) = window.next() {
-        if let Some(_args) = event.update_args() {
-            point1.apply_all();
-            point1.update();
-            point1.handle_edge_collision(window_size.clone());
-            sleep(std::time::Duration::from_millis(16));
-        }
 
+    while let Some(event) = window.next() {
         if let Some(_args) = event.render_args() {
-            window.draw_2d(&event, |c, g, _d| {
-                piston_window::clear([0.1, 0.1, 0.3, 1.0], g);
-                render::render_point(c, g, point1.clone());
-            });
+            if let Some(point) = rx.try_iter().last() {
+                window.draw_2d(&event, |c, g, _d| {
+                    piston_window::clear([0.1, 0.1, 0.3, 1.0], g);
+                    render::render_point(c, g, &point);
+                    println!("{}", point.position[1]);
+                });
+            }
         }
     }
 }
