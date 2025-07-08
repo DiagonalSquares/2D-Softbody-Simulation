@@ -48,7 +48,7 @@ impl Point {
         self.force = [0.0, 0.0];
     }
 
-    pub fn handle_edge_collision(&mut self, window_size: [f64; 2]) {
+    pub fn handle_edge_collision(&mut self, window_size: &[f64; 2]) {
         if self.position[0] < 0.0 {
             self.position[0] = 0.0;
             self.velocity[0] *= -1.0; 
@@ -67,6 +67,7 @@ impl Point {
     }
 }
 
+#[derive(Clone)]
 pub struct Spring {
     pub point1: usize,
     pub point2: usize,
@@ -87,6 +88,7 @@ impl Spring {
     }
 }
 
+#[derive(Clone)]
 pub struct SoftBody {
     pub points: Vec<Point>,
     pub springs: Vec<Spring>,
@@ -100,23 +102,27 @@ impl SoftBody {
         }
     }
 
-    pub fn apply_spring_force(point1: &mut Point, point2: &mut Point, spring: &Spring) {
-        let a = point1;
-        let b = point2;
+    pub fn apply_spring_force(&mut self, spring_index: usize) {
+        let (fx, fy) = {
+        let a = self.points[self.springs[spring_index].point1].clone();
+        let b = self.points[self.springs[spring_index].point2].clone();
 
         let dx = b.position[0] - a.position[0];
         let dy = b.position[1] - a.position[1];
         let distance = (dx * dx + dy * dy).sqrt();
 
-        let stretch = distance - spring.rest_length as f64;
-        let force_mag = spring.stiffness as f64 * stretch;
+        let stretch = distance - self.springs[spring_index].rest_length as f64;
+        let force_mag = self.springs[spring_index].stiffness as f64 * stretch;
 
-        let fx = if distance != 0.0 { force_mag * dx / distance } else { 0.0 };
-        let fy = if distance != 0.0 { force_mag * dy / distance } else { 0.0 };
+        (if distance != 0.0 { force_mag * dx / distance } else { 0.0 },
+         if distance != 0.0 { force_mag * dy / distance } else { 0.0 })
+        };
 
-        a.force[0] += fx;
-        a.force[1] += fy;
-        b.force[0] -= fx;
-        b.force[1] -= fy;
+        println!("Spring Force: fx = {}, fy = {}", fx, fy);
+
+        self.points[self.springs[spring_index].point1].force[0] += fx;
+        self.points[self.springs[spring_index].point1].force[1] += fy;
+        self.points[self.springs[spring_index].point2].force[0] -= fx;
+        self.points[self.springs[spring_index].point2].force[1] -= fy;
     }
 }
