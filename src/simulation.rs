@@ -102,10 +102,9 @@ impl SoftBody {
         }
     }
 
-    pub fn apply_spring_force(&mut self, spring_index: usize) {
-        let (fx, fy) = {
-        let a = self.points[self.springs[spring_index].point1].clone();
-        let b = self.points[self.springs[spring_index].point2].clone();
+    pub fn apply_spring_force(&mut self, point1: &mut Point, point2: &mut Point, spring_index: usize) {
+        let a = point1;
+        let b = point2;
 
         let dx = b.position[0] - a.position[0];
         let dy = b.position[1] - a.position[1];
@@ -114,15 +113,14 @@ impl SoftBody {
         let stretch = distance - self.springs[spring_index].rest_length as f64;
         let force_mag = self.springs[spring_index].stiffness as f64 * stretch;
 
-        (if distance != 0.0 { force_mag * dx / distance } else { 0.0 },
-         if distance != 0.0 { force_mag * dy / distance } else { 0.0 })
-        };
+        let fx = if distance != 0.0 { force_mag * dx / distance } else { 0.0 };
+        let fy = if distance != 0.0 { force_mag * dy / distance } else { 0.0 };
 
         println!("Spring Force: fx = {}, fy = {}", fx, fy);
 
-        self.points[self.springs[spring_index].point1].force[0] += fx;
-        self.points[self.springs[spring_index].point1].force[1] += fy;
-        self.points[self.springs[spring_index].point2].force[0] -= fx;
-        self.points[self.springs[spring_index].point2].force[1] -= fy;
+        a.force[0] += fx;
+        a.force[1] += fy;
+        b.force[0] -= fx;
+        b.force[1] -= fy;
     }
 }

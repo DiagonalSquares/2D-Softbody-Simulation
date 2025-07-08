@@ -30,7 +30,7 @@ fn main() {
         loop {
             softbody.points[0].apply_all();
             softbody.points[1].apply_all();
-            softbody.apply_spring_force(0);
+            softbody.apply_spring_force(&mut softbody.points[0],&mut softbody.points[1], 0);
             softbody.points[0].update();
             softbody.points[1].update();
             softbody.points[0].handle_edge_collision(&window_size);
