@@ -71,19 +71,19 @@ impl Point {
 pub struct Spring {
     pub point1: usize,
     pub point2: usize,
-    pub rest_length: f32,
-    pub stiffness: f32,
-    pub damping: f32,
+    pub rest_length: f64,
+    pub stiffness: f64,
+    pub damping: f64,
 }
 
 impl Spring {
-    pub fn new(point1: usize, point2: usize, rest_length: f32) -> Self {
+    pub fn new(point1: usize, point2: usize, rest_length: f64) -> Self {
         Spring {
             point1,
             point2,
             rest_length,
             stiffness: 0.5,
-            damping: 0.95,
+            damping: 0.10,
         }
     }
 }
@@ -102,25 +102,34 @@ impl SoftBody {
         }
     }
 
-    pub fn apply_spring_force(&mut self, point1: &mut Point, point2: &mut Point, spring_index: usize) {
-        let a = point1;
-        let b = point2;
+    pub fn apply_spring_force(&mut self, spring_index: usize) {
+        let spring = &self.springs[spring_index];
+        let (i1, i2) = (spring.point1, spring.point2);
 
-        let dx = b.position[0] - a.position[0];
-        let dy = b.position[1] - a.position[1];
-        let distance = (dx * dx + dy * dy).sqrt();
+        let (p1, p2) = if i1 < i2 {
+            let (left, right) = self.points.split_at_mut(i2);
+            (&mut left[i1], &mut right[0])
+        } else {
+            let (left, right) = self.points.split_at_mut(i1);
+            (&mut right[0], &mut left[i2])
+        };
 
-        let stretch = distance - self.springs[spring_index].rest_length as f64;
-        let force_mag = self.springs[spring_index].stiffness as f64 * stretch;
+        let dx = p2.position[0] - p1.position[0];
+        let dy = p2.position[1] - p1.position[1];
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq == 0.0 {
+            return;
+        }
+        let distance = dist_sq.sqrt();
 
-        let fx = if distance != 0.0 { force_mag * dx / distance } else { 0.0 };
-        let fy = if distance != 0.0 { force_mag * dy / distance } else { 0.0 };
+        let stretch   = distance - spring.rest_length;
+        let force_mag = spring.stiffness * stretch;
+        let fx = force_mag * dx / distance;
+        let fy = force_mag * dy / distance;
 
-        println!("Spring Force: fx = {}, fy = {}", fx, fy);
-
-        a.force[0] += fx;
-        a.force[1] += fy;
-        b.force[0] -= fx;
-        b.force[1] -= fy;
+        p1.force[0] +=  fx * spring.damping;
+        p1.force[1] +=  fy * spring.damping;
+        p2.force[0] -=  fx * spring.damping;
+        p2.force[1] -=  fy * spring.damping;
     }
 }

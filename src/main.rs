@@ -28,9 +28,9 @@ fn main() {
         softbody.springs.push(simulation::Spring::new(0, 1, 100.0));
         thread::sleep(std::time::Duration::from_millis(2000));
         loop {
+            softbody.apply_spring_force(0);
             softbody.points[0].apply_all();
             softbody.points[1].apply_all();
-            softbody.apply_spring_force(&mut softbody.points[0],&mut softbody.points[1], 0);
             softbody.points[0].update();
             softbody.points[1].update();
             softbody.points[0].handle_edge_collision(&window_size);
