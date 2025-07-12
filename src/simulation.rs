@@ -1,3 +1,5 @@
+use piston::window;
+
 const GRAVITY: [f64; 2] = [0.0, 0.98];
 
 #[derive(Clone)]
@@ -102,6 +104,22 @@ impl SoftBody {
         }
     }
 
+    pub fn new_triangle(p1: [f64; 2], p2: [f64; 2], p3: [f64; 2]) -> Self {
+        let mut soft_body = SoftBody::new();
+        let idx1 = soft_body.points.len();
+        soft_body.points.push(Point::new(p1, 1.0));
+        let idx2 = soft_body.points.len();
+        soft_body.points.push(Point::new(p2, 1.0));
+        let idx3 = soft_body.points.len();
+        soft_body.points.push(Point::new(p3, 1.0));
+
+        soft_body.springs.push(Spring::new(idx1, idx2, 100.0));
+        soft_body.springs.push(Spring::new(idx2, idx3, 100.0));
+        soft_body.springs.push(Spring::new(idx3, idx1, 100.0));
+
+        soft_body
+    }
+
     pub fn apply_spring_force(&mut self, spring_index: usize) {
         let spring = &self.springs[spring_index];
         let (i1, i2) = (spring.point1, spring.point2);
@@ -131,5 +149,20 @@ impl SoftBody {
         p1.force[1] +=  fy * spring.damping;
         p2.force[0] -=  fx * spring.damping;
         p2.force[1] -=  fy * spring.damping;
+    }
+
+    pub fn update(&mut self, window_size: &[f64; 2]) {
+        for i in 0..self.springs.len() {
+            self.apply_spring_force(i);
+        }
+
+        for point in &mut self.points {
+            point.apply_all();
+            point.update();
+        }
+
+        for point in &mut self.points {
+            point.handle_edge_collision(&[800.0, 600.0]); // Example window size
+        }
     }
 }

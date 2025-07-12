@@ -22,19 +22,11 @@ fn main() {
         .unwrap();
 
     thread::spawn(move || {
-        let mut softbody = simulation::SoftBody::new();
-        softbody.points.push(simulation::Point::new([100.0, 100.0], 1.0));
-        softbody.points.push(simulation::Point::new([300.0, 150.0], 1.0));
-        softbody.springs.push(simulation::Spring::new(0, 1, 100.0));
+        let mut softbody = simulation::SoftBody::new_triangle([400.0, 300.0], [200.0, 100.0], [600.0, 300.0]);
+        
         thread::sleep(std::time::Duration::from_millis(2000));
         loop {
-            softbody.apply_spring_force(0);
-            softbody.points[0].apply_all();
-            softbody.points[1].apply_all();
-            softbody.points[0].update();
-            softbody.points[1].update();
-            softbody.points[0].handle_edge_collision(&window_size);
-            softbody.points[1].handle_edge_collision(&window_size);
+            softbody.update(&window_size);
             tx.send(softbody.clone()).unwrap();
             thread::sleep(std::time::Duration::from_millis(16));
         }
@@ -45,8 +37,7 @@ fn main() {
             if let Some(softbody) = rx.try_iter().last() {
                 window.draw_2d(&event, |c, g, _d| {
                     piston_window::clear([0.1, 0.1, 0.3, 1.0], g);
-                    render::render_point(c, g, &softbody.points[0]);
-                    render::render_point(c, g, &softbody.points[1]);
+                    render::render_softbody(c, g, &softbody);
                 });
             }
         }
