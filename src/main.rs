@@ -22,9 +22,10 @@ fn main() {
         .unwrap();
 
     thread::spawn(move || {
-        let mut softbody = simulation::SoftBody::new_triangle([400.0, 300.0], [200.0, 100.0], [600.0, 300.0]);
+        //let mut softbody = simulation::SoftBody::new_triangle([400.0, 300.0]);
+        let mut softbody = simulation::SoftBody::new_square([100.0, 50.0], 400.0, 12);
         
-        thread::sleep(std::time::Duration::from_millis(2000));
+        thread::sleep(std::time::Duration::from_millis(1000));
         loop {
             softbody.update(&window_size);
             tx.send(softbody.clone()).unwrap();
