@@ -2,6 +2,12 @@ use piston_window::*;
 
 use crate::simulation;
 
+pub fn render_all_softbodies(c: Context, g: &mut G2d, softbodies: &[simulation::SoftBody]) {
+    for softbody in softbodies {
+        render_softbody(c, g, softbody);
+    }
+}
+
 pub fn render_softbody(c: Context, g: &mut G2d, softbody: &simulation::SoftBody) {
     for (i, spring) in softbody.springs.iter().enumerate() {
         line([0.0, 0.0, 1.0, 1.0], 1.0, 

@@ -1,6 +1,6 @@
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::thread::{self, sleep};
-use piston::window;
+use piston::{mouse, window};
 use piston_window::{UpdateEvent, RenderEvent};
 
 mod render;
@@ -12,6 +12,7 @@ use simulation::SoftBody;
 
 fn main() {
     let window_size = [800.0, 600.0];
+    let mut mouse_pos = [0.0, 0.0];
 
     let (tx, rx): (Sender<SoftBody>, Receiver<SoftBody>) = mpsc::channel();
 
@@ -23,7 +24,7 @@ fn main() {
 
     thread::spawn(move || {
         //let mut softbody = simulation::SoftBody::new_triangle([400.0, 300.0]);
-        let mut softbody = simulation::SoftBody::new_square([100.0, 50.0], 400.0, 12);
+        let mut softbody = simulation::SoftBody::new_square([100.0, 50.0], 200.0, 6);
         
         thread::sleep(std::time::Duration::from_millis(1000));
         loop {
@@ -34,6 +35,18 @@ fn main() {
     });
 
     while let Some(event) = window.next() {
+        if let Some(pos) = mouse::MouseCursorEvent::mouse_cursor_args(&event) {
+            mouse_pos = pos;
+        }
+        
+        if let Some(piston::Button::Mouse(button)) = piston::PressEvent::press_args(&event) {
+            if button == piston::MouseButton::Left {
+                println!("Left mouse button pressed at: {:?}", mouse_pos);
+            } else if button == piston::MouseButton::Right {
+                println!("Right mouse button pressed at: {:?}", mouse_pos);
+            }
+        }
+
         if let Some(_args) = event.render_args() {
             if let Some(softbody) = rx.try_iter().last() {
                 window.draw_2d(&event, |c, g, _d| {
