@@ -1,5 +1,3 @@
-use piston::window;
-
 const GRAVITY: [f64; 2] = [0.0, 0.098];
 
 #[derive(Clone)]
@@ -7,16 +5,18 @@ pub struct Point {
     pub position: [f64; 2],
     force: [f64; 2],
     velocity: [f64; 2],
+    max_velocity: f64,
     mass: f64,
     friction: f64,
 }
 
 impl Point {
-    pub fn new(position: [f64; 2], mass: f64) -> Self {
+    pub fn new(position: [f64; 2], mass: f64, max_velocity: f64) -> Self {
         Point {
             position,
             force: [0.0, 0.0],
             velocity: [0.0, 0.0],
+            max_velocity,
             mass,
             friction: 0.99,
         }
@@ -28,8 +28,8 @@ impl Point {
     }
 
     pub fn apply_force(&mut self) {
-        self.velocity[0] += self.force[0]/self.mass;
-        self.velocity[1] += self.force[1]/self.mass;
+        self.velocity[0] += self.force[0] / self.mass;
+        self.velocity[1] += self.force[1] / self.mass;
     }
 
     pub fn apply_friction(&mut self) {
@@ -37,10 +37,20 @@ impl Point {
         self.velocity[1] *= self.friction;
     }
 
+    pub fn clamp_velocity(&mut self) {
+        let speed_sq = self.velocity[0].powi(2) + self.velocity[1].powi(2);
+        if speed_sq > self.max_velocity * self.max_velocity {
+            let speed = speed_sq.sqrt();
+            self.velocity[0] = self.velocity[0] / speed * self.max_velocity;
+            self.velocity[1] = self.velocity[1] / speed * self.max_velocity;
+        }
+    }
+
     pub fn apply_all(&mut self) {
         self.apply_gravity();
         self.apply_force();
         self.apply_friction();
+        self.clamp_velocity();
     }
 
     pub fn update(&mut self) {
@@ -84,8 +94,8 @@ impl Spring {
             point1,
             point2,
             rest_length,
-            stiffness: 0.5,
-            damping: 0.3,
+            stiffness: 0.6, // less stiff = more fluid
+            damping: 0.4, // less damping = more fluid
         }
     }
 }
@@ -108,11 +118,12 @@ impl SoftBody {
         let mut soft_body = SoftBody::new();
         let mass = 1.0;
         let faces = faces+1;
+        let valocity_max = size / faces as f64 * 0.2;
         for i in 0..faces {
             for j in 0..faces {
                 let x = pos[0] + (i as f64) * size / (faces - 1) as f64;
                 let y = pos[1] + (j as f64) * size / (faces - 1) as f64;
-                soft_body.points.push(Point::new([x, y], mass));
+                soft_body.points.push(Point::new([x, y], mass, valocity_max));
             }
         }
 
@@ -150,21 +161,17 @@ impl SoftBody {
     pub fn new_triangle(pos: [f64; 2]) -> Self {
         let mut soft_body = SoftBody::new();
         let idx1 = soft_body.points.len();
-        soft_body.points.push(Point::new([pos[0], pos[1]-15.0], 1.0));
+        soft_body.points.push(Point::new([pos[0], pos[1]-15.0], 1.0, 100.0));
         let idx2 = soft_body.points.len();
-        soft_body.points.push(Point::new([pos[0]+20.0, pos[1]], 1.0));
+        soft_body.points.push(Point::new([pos[0]+20.0, pos[1]], 1.0, 100.0));
         let idx3 = soft_body.points.len();
-        soft_body.points.push(Point::new([pos[0]-10.0, pos[1]], 1.0));
+        soft_body.points.push(Point::new([pos[0]-10.0, pos[1]], 1.0, 100.0));
 
         soft_body.springs.push(Spring::new(idx1, idx2, 100.0));
         soft_body.springs.push(Spring::new(idx2, idx3, 100.0));
         soft_body.springs.push(Spring::new(idx3, idx1, 100.0));
 
         soft_body
-    }
-
-    pub fn get_points_len(&self) -> usize {
-        self.points.len()
     }
 
     pub fn apply_spring_force(&mut self, spring_index: usize) {
@@ -215,8 +222,8 @@ impl SoftBody {
         }
         let distance = dist_sq.sqrt();
 
-        if distance < 20.0 {
-            let overlap = 20.0 - distance;
+        if distance < p1.max_velocity * 3.0{
+            let overlap = p1.max_velocity * 3.0 - distance;
             let force_mag = overlap * 0.5;
             p1.force[0] -= force_mag * dx / distance;
             p1.force[1] -= force_mag * dy / distance;

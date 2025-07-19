@@ -1,6 +1,6 @@
 use piston_window::*;
 
-use crate::simulation;
+use crate::{simulation};
 
 pub fn render_all_softbodies(c: Context, g: &mut G2d, softbodies: &[simulation::SoftBody]) {
     for softbody in softbodies {
@@ -9,17 +9,12 @@ pub fn render_all_softbodies(c: Context, g: &mut G2d, softbodies: &[simulation::
 }
 
 pub fn render_softbody(c: Context, g: &mut G2d, softbody: &simulation::SoftBody) {
-    for (i, spring) in softbody.springs.iter().enumerate() {
-        line([0.0, 0.0, 1.0, 1.0], 1.0, 
-            [softbody.points[spring.point1].position[0], 
-             softbody.points[spring.point1].position[1],
-             softbody.points[spring.point2].position[0],
-             softbody.points[spring.point2].position[1]],
-            c.transform, g);
+    for i in 0..softbody.springs.len() {
+        render_spring(c, g, softbody, i);
     }
 
     for point in &softbody.points {
-        ellipse([0.0, 1.0, 0.0, 1.0], rectangle::centered_square(point.position[0], point.position[1], 5.0), c.transform, g);
+        render_point(c, g, point);
     }
 }
 
