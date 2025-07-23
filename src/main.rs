@@ -8,18 +8,19 @@ mod ui;
 mod input;
 mod simulation;
 
-use simulation::SoftBody;
+    use simulation::{SoftBodyCollection, SoftBody};
 
 fn main() {
     let window_size = [800.0, 600.0];
     let mut mouse_pos = [0.0, 0.0];
     let mut mouse_down = false;
     let mut held_point_index: Option<usize> = None;
+    let mut softbody_index: Option<usize> = None;
     let mut current_softbody: Option<SoftBody> = None;
 
     // Two-way communication
-    let (to_sim_tx, to_sim_rx): (Sender<SoftBody>, Receiver<SoftBody>) = mpsc::channel();
-    let (from_sim_tx, from_sim_rx): (Sender<SoftBody>, Receiver<SoftBody>) = mpsc::channel();
+    let (to_sim_tx, to_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
+    let (from_sim_tx, from_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
 
     println!("Starting Soft Body Simulation...");
 
@@ -31,16 +32,19 @@ fn main() {
 
     // Spawn simulation thread
     thread::spawn(move || {
-        let mut softbody = SoftBody::new_square([100.0, 50.0], 200.0, 6);
+        let mut softbodycollection = SoftBodyCollection::new();
+        softbodycollection.add(SoftBody::new_square([100.0, 300.0], 200.0, 6));
+        softbodycollection.add(SoftBody::new_square([0.0, 100.0], 150.0, 5));
+        softbodycollection.add(SoftBody::new_square([0.0, 0.0], 100.0, 3));
         loop {
             // Try to receive an updated softbody from UI
             while let Ok(updated) = to_sim_rx.try_recv() {
-                softbody = updated;
+                softbodycollection = updated;
             }
 
-            softbody.update(&window_size);
+            softbodycollection.update(&window_size);
 
-            from_sim_tx.send(softbody.clone()).unwrap();
+            from_sim_tx.send(softbodycollection.clone()).unwrap();
             thread::sleep(std::time::Duration::from_millis(16)); // ~60 FPS
         }
     });
@@ -51,17 +55,29 @@ fn main() {
             mouse_pos = pos;
         }
 
-        // Mouse press: identify point to drag
+        // Mouse press: find the closest point in any softbody
         if let Some(piston::Button::Mouse(button)) = piston::PressEvent::press_args(&event) {
             if button == piston::MouseButton::Left {
                 mouse_down = true;
-
-                if let Some(sb) = &current_softbody {
-                    held_point_index = sb.points.iter().position(|p| {
-                        let dx = p.position[0] - mouse_pos[0];
-                        let dy = p.position[1] - mouse_pos[1];
-                        (dx * dx + dy * dy).sqrt() < 10.0
-                    });
+                // Always use the latest state for picking
+                if let Some(softbodies) = from_sim_rx.try_iter().last() {
+                    let mut found = false;
+                    for (sbi, sb) in softbodies.softbodies.iter().enumerate() {
+                        if let Some(pi) = sb.points.iter().position(|p| {
+                            let dx = p.position[0] - mouse_pos[0];
+                            let dy = p.position[1] - mouse_pos[1];
+                            (dx * dx + dy * dy).sqrt() < 10.0
+                        }) {
+                            softbody_index = Some(sbi);
+                            held_point_index = Some(pi);
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        softbody_index = None;
+                        held_point_index = None;
+                    }
                 }
             }
         }
@@ -71,30 +87,34 @@ fn main() {
             if button == piston::MouseButton::Left {
                 mouse_down = false;
                 held_point_index = None;
+                softbody_index = None;
             }
         }
 
         // On render: drag logic + send updated softbody to simulation thread
         if let Some(_args) = event.render_args() {
-            // Get latest softbody from simulation
-            if let Some(mut sb) = from_sim_rx.try_iter().last() {
+            if let Some(mut softbodies) = from_sim_rx.try_iter().last() {
                 // Dragging logic
                 if mouse_down {
-                    if let Some(index) = held_point_index {
-                        if index < sb.points.len() {
-                            sb.points[index].position = mouse_pos;
+                    if let (Some(sb_idx), Some(pt_idx)) = (softbody_index, held_point_index) {
+                        if sb_idx < softbodies.softbodies.len() && pt_idx < softbodies.softbodies[sb_idx].points.len() {
+                            softbodies.softbodies[sb_idx].points[pt_idx].position = mouse_pos;
                         }
                     }
                 }
 
                 // Save locally and send to sim thread
-                current_softbody = Some(sb.clone());
-                to_sim_tx.send(sb.clone()).unwrap();
+                if let Some(sb_idx) = softbody_index {
+                    if sb_idx < softbodies.softbodies.len() {
+                        current_softbody = Some(softbodies.softbodies[sb_idx].clone());
+                    }
+                }
+                to_sim_tx.send(softbodies.clone()).unwrap();
 
                 // Draw
                 window.draw_2d(&event, |c, g, _| {
                     piston_window::clear([0.1, 0.1, 0.3, 1.0], g);
-                    render::render_softbody(c, g, &sb);
+                    render::render_all_softbodies(c, g, &softbodies.softbodies);
                 });
             }
         }

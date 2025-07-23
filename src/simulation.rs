@@ -1,6 +1,6 @@
 const GRAVITY: [f64; 2] = [0.0, 0.098];
 
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Point {
     pub position: [f64; 2],
     force: [f64; 2],
@@ -79,7 +79,7 @@ impl Point {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Spring {
     pub point1: usize,
     pub point2: usize,
@@ -100,7 +100,7 @@ impl Spring {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SoftBody {
     pub points: Vec<Point>,
     pub springs: Vec<Spring>,
@@ -205,7 +205,7 @@ impl SoftBody {
         p2.force[1] -=  fy * spring.damping;
     }
 
-    pub fn point_collision(&mut self, point_index1: usize, point_index2: usize) {
+    pub fn self_point_collision(&mut self, point_index1: usize, point_index2: usize) {
         let (p1, p2) = if point_index1 < point_index2 {
             let (left, right) = self.points.split_at_mut(point_index2);
             (&mut left[point_index1], &mut right[0])
@@ -232,6 +232,36 @@ impl SoftBody {
         }
     }
 
+    pub fn point_collision(&mut self, point1: usize, point2: &mut Point) {
+        let p1 = &mut self.points[point1];
+        let p2 = point2;
+
+        let dx = p2.position[0] - p1.position[0];
+        let dy = p2.position[1] - p1.position[1];
+        let dist_sq = dx * dx + dy * dy;
+        if dist_sq == 0.0 {
+            return;
+        }
+        let distance = dist_sq.sqrt();
+
+        if distance < (p1.max_velocity + p2.max_velocity) * 2.5 {
+            let overlap = (p1.max_velocity + p2.max_velocity) * 2.5 - distance;
+            let force_mag = overlap * 0.5;
+            p1.force[0] -= force_mag * dx / distance;
+            p1.force[1] -= force_mag * dy / distance;
+            p2.force[0] += force_mag * dx / distance;
+            p2.force[1] += force_mag * dy / distance;
+        }
+    }
+
+    pub fn softbody_collision(&mut self, other: &mut SoftBody) {
+        for i in 0..self.points.len() {
+            for j in 0..other.points.len() {
+                self.point_collision(i, &mut other.points[j]);
+            }
+        }
+    }
+
     pub fn update(&mut self, window_size: &[f64; 2]) {
         for i in 0..self.springs.len() {
             self.apply_spring_force(i);
@@ -248,8 +278,44 @@ impl SoftBody {
 
         for i in 0..self.points.len() {
             for j in (i + 1)..self.points.len() {
-                self.point_collision(i, j);
+                self.self_point_collision(i, j);
             }
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct SoftBodyCollection {
+    pub softbodies: Vec<SoftBody>,
+}
+
+impl SoftBodyCollection {
+    pub fn new() -> Self {
+        SoftBodyCollection {
+            softbodies: Vec::new(),
+        }
+    }
+
+    pub fn add(&mut self, softbody: SoftBody) {
+        self.softbodies.push(softbody);
+    }
+
+    pub fn softbody_collisions(&mut self) {
+        let len = self.softbodies.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                let (left, right) = self.softbodies.split_at_mut(j);
+                let a = &mut left[i];
+                let b = &mut right[0];
+                a.softbody_collision(b);
+            }
+        }
+    }
+
+    pub fn update(&mut self, window_size: &[f64; 2]) {
+        for softbody in &mut self.softbodies {
+            softbody.update(window_size);
+        }
+        self.softbody_collisions();
     }
 }
