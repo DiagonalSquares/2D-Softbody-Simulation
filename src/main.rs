@@ -1,14 +1,14 @@
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::thread;
-use piston::{mouse, window};
-use piston_window::{UpdateEvent, RenderEvent};
+use piston::{mouse};
+use piston_window::{RenderEvent};
 
 mod render;
 mod ui;
 mod input;
 mod simulation;
 
-    use simulation::{SoftBodyCollection, SoftBody};
+use simulation::{SoftBodyCollection, SoftBody};
 
 fn main() {
     let window_size = [800.0, 600.0];
@@ -16,7 +16,6 @@ fn main() {
     let mut mouse_down = false;
     let mut held_point_index: Option<usize> = None;
     let mut softbody_index: Option<usize> = None;
-    let mut current_softbody: Option<SoftBody> = None;
 
     // Two-way communication
     let (to_sim_tx, to_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
@@ -33,9 +32,9 @@ fn main() {
     // Spawn simulation thread
     thread::spawn(move || {
         let mut softbodycollection = SoftBodyCollection::new();
-        softbodycollection.add(SoftBody::new_square([100.0, 300.0], 200.0, 6));
-        softbodycollection.add(SoftBody::new_square([0.0, 100.0], 150.0, 5));
-        softbodycollection.add(SoftBody::new_square([0.0, 0.0], 100.0, 3));
+        softbodycollection.add(SoftBody::new_square([100.0, 300.0], 200.0, 3));
+        softbodycollection.add(SoftBody::new_square([0.0, 100.0], 150.0, 6));
+        softbodycollection.add(SoftBody::new_square([0.0, 0.0], 100.0, 5));
         loop {
             // Try to receive an updated softbody from UI
             while let Ok(updated) = to_sim_rx.try_recv() {
@@ -100,13 +99,6 @@ fn main() {
                         if sb_idx < softbodies.softbodies.len() && pt_idx < softbodies.softbodies[sb_idx].points.len() {
                             softbodies.softbodies[sb_idx].points[pt_idx].position = mouse_pos;
                         }
-                    }
-                }
-
-                // Save locally and send to sim thread
-                if let Some(sb_idx) = softbody_index {
-                    if sb_idx < softbodies.softbodies.len() {
-                        current_softbody = Some(softbodies.softbodies[sb_idx].clone());
                     }
                 }
                 to_sim_tx.send(softbodies.clone()).unwrap();

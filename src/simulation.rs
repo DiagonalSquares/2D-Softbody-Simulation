@@ -83,7 +83,7 @@ impl Point {
 pub struct Spring {
     pub point1: usize,
     pub point2: usize,
-    rest_length: f64,
+    pub rest_length: f64,
     stiffness: f64,
     damping: f64,
 }
@@ -244,8 +244,9 @@ impl SoftBody {
         }
         let distance = dist_sq.sqrt();
 
-        if distance < (p1.max_velocity + p2.max_velocity) * 2.5 {
-            let overlap = (p1.max_velocity + p2.max_velocity) * 2.5 - distance;
+        let radius = (p1.max_velocity + p2.max_velocity) * 2.5;
+        if distance < radius {
+            let overlap = radius - distance;
             let force_mag = overlap * 0.5;
             p1.force[0] -= force_mag * dx / distance;
             p1.force[1] -= force_mag * dy / distance;

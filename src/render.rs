@@ -23,10 +23,20 @@ pub fn render_point(c: Context, g: &mut G2d, point: &simulation::Point) {
 }
 
 pub fn render_spring(c: Context, g: &mut G2d, softbody: &simulation::SoftBody, spring: usize) {
-    line([0.0, 0.0, 1.0, 1.0], 1.0, 
-        [softbody.points[softbody.springs[spring].point1].position[0], 
-            softbody.points[softbody.springs[spring].point1].position[1],
-            softbody.points[softbody.springs[spring].point2].position[0],
-            softbody.points[softbody.springs[spring].point2].position[1]],
+    let pos1 = softbody.points[softbody.springs[spring].point1].position;
+    let pos2 = softbody.points[softbody.springs[spring].point2].position;
+
+    let dx = pos2[0] - pos1[0];
+    let dy = pos2[1] - pos1[1];
+
+    let distance_sq = dx * dx + dy * dy;
+    let distance = distance_sq.sqrt();
+
+    let color = (softbody.springs[spring].rest_length / distance) as f32;
+    line([1.0 - color, color - 1.0, color, 1.0], 1.0, 
+        [pos1[0], 
+            pos1[1],
+            pos2[0],
+            pos2[1]],
         c.transform, g)
 }
