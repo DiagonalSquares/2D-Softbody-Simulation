@@ -1,21 +1,24 @@
 use std::sync::mpsc::{self, Sender, Receiver};
 use std::thread;
-use piston::{mouse};
-use piston_window::{RenderEvent};
+use std::time::Instant;
+use piston::{mouse, Button};
+use piston_window::{RenderEvent, TextureSettings};
 
 mod render;
 mod ui;
 mod input;
 mod simulation;
+mod app;
 
 use simulation::{SoftBodyCollection, SoftBody};
 
 fn main() {
+    let mut input_handler = input::Input_Handler::new();
+
     let window_size = [800.0, 600.0];
-    let mut mouse_pos = [0.0, 0.0];
-    let mut mouse_down = false;
-    let mut held_point_index: Option<usize> = None;
-    let mut softbody_index: Option<usize> = None;
+
+    let mut frame_count = 0;
+    let mut last_fps_check = Instant::now();
 
     // Two-way communication
     let (to_sim_tx, to_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
@@ -28,6 +31,19 @@ fn main() {
             .exit_on_esc(true)
             .build()
             .unwrap();
+    
+    let spawn_button = ui::SpawnButton::new(
+        [50.0, 50.0],
+        [100.0, 50.0],
+        [0.2, 0.6, 0.8, 1.0],
+        "click me".to_string()
+    );
+
+    let mut glyphs = piston_window::Glyphs::new(
+        "src/resources/FiraSans-Regular.ttf",
+        window.create_texture_context(),
+        TextureSettings::new()
+    ).unwrap();
 
     // Spawn simulation thread
     thread::spawn(move || {
@@ -51,42 +67,25 @@ fn main() {
     while let Some(event) = window.next() {
         // Track mouse position
         if let Some(pos) = mouse::MouseCursorEvent::mouse_cursor_args(&event) {
-            mouse_pos = pos;
+            input_handler.handle_mouse_move(pos);
         }
 
         // Mouse press: find the closest point in any softbody
-        if let Some(piston::Button::Mouse(button)) = piston::PressEvent::press_args(&event) {
+        if let Some(Button::Mouse(button)) = piston::PressEvent::press_args(&event) {
             if button == piston::MouseButton::Left {
-                mouse_down = true;
-                // Always use the latest state for picking
                 if let Some(softbodies) = from_sim_rx.try_iter().last() {
-                    let mut found = false;
-                    for (sbi, sb) in softbodies.softbodies.iter().enumerate() {
-                        if let Some(pi) = sb.points.iter().position(|p| {
-                            let dx = p.position[0] - mouse_pos[0];
-                            let dy = p.position[1] - mouse_pos[1];
-                            (dx * dx + dy * dy).sqrt() < 10.0
-                        }) {
-                            softbody_index = Some(sbi);
-                            held_point_index = Some(pi);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        softbody_index = None;
-                        held_point_index = None;
-                    }
+                    input_handler.handle_mouse_down(softbodies.clone());
+
+                    //spawn a softbody if the spawn button is clicked
+                    spawn_button.handle_click(input_handler.mouse_pos, softbodies.clone(), &to_sim_tx);
                 }
             }
         }
 
         // Mouse release: stop dragging
-        if let Some(piston::Button::Mouse(button)) = piston::ReleaseEvent::release_args(&event) {
+        if let Some(Button::Mouse(button)) = piston::ReleaseEvent::release_args(&event) {
             if button == piston::MouseButton::Left {
-                mouse_down = false;
-                held_point_index = None;
-                softbody_index = None;
+                input_handler.handle_mouse_up();
             }
         }
 
@@ -94,20 +93,33 @@ fn main() {
         if let Some(_args) = event.render_args() {
             if let Some(mut softbodies) = from_sim_rx.try_iter().last() {
                 // Dragging logic
-                if mouse_down {
-                    if let (Some(sb_idx), Some(pt_idx)) = (softbody_index, held_point_index) {
+                if input_handler.mouse_down {
+                    if let (Some(sb_idx), Some(pt_idx)) = (input_handler.softbody_index, input_handler.held_point_index) {
                         if sb_idx < softbodies.softbodies.len() && pt_idx < softbodies.softbodies[sb_idx].points.len() {
-                            softbodies.softbodies[sb_idx].points[pt_idx].position = mouse_pos;
+                            softbodies.softbodies[sb_idx].points[pt_idx].position = input_handler.mouse_pos;
                         }
                     }
                 }
+
+                // Send the updated softbodies to the simulation thread
                 to_sim_tx.send(softbodies.clone()).unwrap();
 
                 // Draw
-                window.draw_2d(&event, |c, g, _| {
+                window.draw_2d(&event, |c, g, device| {
                     piston_window::clear([0.1, 0.1, 0.3, 1.0], g);
                     render::render_all_softbodies(c, g, &softbodies.softbodies);
+                    spawn_button.render(c, g, &mut glyphs);
+
+                    glyphs.factory.encoder.flush(device);
                 });
+
+                frame_count += 1;
+                if last_fps_check.elapsed().as_secs() >= 1 {
+                    let fps = frame_count as f64 / last_fps_check.elapsed().as_secs_f64();
+                    println!("FPS: {:.2}", fps);
+                    frame_count = 0;
+                    last_fps_check = Instant::now();
+                }
             }
         }
     }

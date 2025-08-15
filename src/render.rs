@@ -34,9 +34,6 @@ pub fn render_spring(c: Context, g: &mut G2d, softbody: &simulation::SoftBody, s
 
     let color = (softbody.springs[spring].rest_length / distance) as f32;
     line([1.0 - color, color - 1.0, color, 1.0], 1.0, 
-        [pos1[0], 
-            pos1[1],
-            pos2[0],
-            pos2[1]],
+        [pos1[0], pos1[1], pos2[0], pos2[1]],
         c.transform, g)
 }
