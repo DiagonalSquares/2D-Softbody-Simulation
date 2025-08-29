@@ -1,22 +1,18 @@
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::{Sender};
 use piston_window::*;
 
 use crate::simulation::{self, SoftBodyCollection};
 
-pub fn render_all() {
-
-}
-
-pub struct SpawnButton {
+pub struct Button {
     position: [f64; 2],
     size: [f64; 2],
     color: [f32; 4],
     label: String,
 }
 
-impl SpawnButton {
+impl Button {
     pub fn new(position: [f64; 2], size: [f64; 2], color: [f32; 4],label: String ) -> Self {
-        SpawnButton {
+        Button {
             position,
             size,
             color,
@@ -38,12 +34,23 @@ impl SpawnButton {
         mouse_pos[1] <= self.position[1] + self.size[1]
     }
 
-    pub fn handle_click(&self, mouse_pos: [f64; 2], mut softbodies: SoftBodyCollection, to_sim_tx: &Sender<simulation::SoftBodyCollection>) {
+    pub fn handle_click_spawn(&self, mouse_pos: [f64; 2], mut softbodies: SoftBodyCollection, to_sim_tx: &Sender<simulation::SoftBodyCollection>) {
         if self.click_range(mouse_pos) {
-            let new_softbody = simulation::SoftBody::new_square([200.0, 100.0], 100.0, 5);
+            let new_softbody = simulation::SoftBody::new_square([200.0, 100.0], 100.0, 4);
             softbodies.add(new_softbody);
             to_sim_tx.send(softbodies).unwrap();
             println!("Spawned new softbody!");
         }
     }
+
+    pub fn handle_click_pause(&self, mouse_pos: [f64; 2], pause: bool) -> bool {
+        if self.click_range(mouse_pos) {
+            return !pause;
+        }
+        pause
+    }
+}
+
+struct AllButtons {
+    buttons: Vec<Button>,
 }

@@ -23,6 +23,10 @@ fn main() {
     // Two-way communication
     let (to_sim_tx, to_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
     let (from_sim_tx, from_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
+    let (to_sim_pause_tx, to_sim_pause_rx): (Sender<bool>, Receiver<bool>) = mpsc::channel();
+    let (from_sim_pause_tx, from_sim_pause_rx): (Sender<bool>, Receiver<bool>) = mpsc::channel();
+
+    let mut pause = false;
 
     println!("Starting Soft Body Simulation...");
 
@@ -32,11 +36,18 @@ fn main() {
             .build()
             .unwrap();
     
-    let spawn_button = ui::SpawnButton::new(
+    let spawn_button = ui::Button::new(
         [50.0, 50.0],
         [100.0, 50.0],
         [0.2, 0.6, 0.8, 1.0],
-        "click me".to_string()
+        "Spawn".to_string()
+    );
+
+    let pause_button = ui::Button::new(
+        [450.0, 50.0],
+        [100.0, 50.0],
+        [0.5, 0.5, 0.2, 1.0],
+        "Pause".to_string()
     );
 
     let mut glyphs = piston_window::Glyphs::new(
@@ -52,15 +63,22 @@ fn main() {
         softbodycollection.add(SoftBody::new_square([0.0, 100.0], 150.0, 6));
         softbodycollection.add(SoftBody::new_square([0.0, 0.0], 100.0, 5));
         loop {
+            if let Ok(p) = to_sim_pause_rx.try_recv() {
+                pause = p;
+            }
             // Try to receive an updated softbody from UI
             while let Ok(updated) = to_sim_rx.try_recv() {
                 softbodycollection = updated;
             }
 
-            softbodycollection.update(&window_size);
+            if !pause {
+                softbodycollection.update(&window_size);
 
-            from_sim_tx.send(softbodycollection.clone()).unwrap();
-            thread::sleep(std::time::Duration::from_millis(16)); // ~60 FPS
+                from_sim_tx.send(softbodycollection.clone()).unwrap();
+                thread::sleep(std::time::Duration::from_millis(16)); // ~60 FPS
+            }
+
+            from_sim_pause_tx.send(pause).unwrap();
         }
     });
 
@@ -77,8 +95,10 @@ fn main() {
                     input_handler.handle_mouse_down(softbodies.clone());
 
                     //spawn a softbody if the spawn button is clicked
-                    spawn_button.handle_click(input_handler.mouse_pos, softbodies.clone(), &to_sim_tx);
+                    spawn_button.handle_click_spawn(input_handler.mouse_pos, softbodies.clone(), &to_sim_tx);
                 }
+                pause = pause_button.handle_click_pause(input_handler.mouse_pos, pause);
+                to_sim_pause_tx.send(pause).unwrap();
             }
         }
 
@@ -91,6 +111,10 @@ fn main() {
 
         // On render: drag logic + send updated softbody to simulation thread
         if let Some(_args) = event.render_args() {
+            if let Some(p) = from_sim_pause_rx.try_iter().last() {
+                pause = p;
+            }
+
             if let Some(mut softbodies) = from_sim_rx.try_iter().last() {
                 // Dragging logic
                 if input_handler.mouse_down {
@@ -109,6 +133,7 @@ fn main() {
                     piston_window::clear([0.1, 0.1, 0.3, 1.0], g);
                     render::render_all_softbodies(c, g, &softbodies.softbodies);
                     spawn_button.render(c, g, &mut glyphs);
+                    pause_button.render(c, g, &mut glyphs);
 
                     glyphs.factory.encoder.flush(device);
                 });
