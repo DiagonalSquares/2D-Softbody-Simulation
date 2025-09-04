@@ -1,19 +1,19 @@
-use std::sync::mpsc::{self, Sender, Receiver};
-use std::thread;
-use std::time::Instant;
 use piston::{mouse, Button};
 use piston_window::{RenderEvent, TextureSettings};
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
+use std::time::Instant;
 
-mod render;
-mod ui;
-mod input;
-mod simulation;
 mod app;
+mod input;
+mod render;
+mod simulation;
+mod ui;
 
-use simulation::{SoftBodyCollection, SoftBody};
+use simulation::{SoftBody, SoftBodyCollection};
 
 fn main() {
-    let mut input_handler = input::Input_Handler::new();
+    let mut input_handler = input::InputHandler::new();
 
     let window_size = [800.0, 600.0];
 
@@ -21,8 +21,10 @@ fn main() {
     let mut last_fps_check = Instant::now();
 
     // Two-way communication
-    let (to_sim_tx, to_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
-    let (from_sim_tx, from_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) = mpsc::channel();
+    let (to_sim_tx, to_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) =
+        mpsc::channel();
+    let (from_sim_tx, from_sim_rx): (Sender<SoftBodyCollection>, Receiver<SoftBodyCollection>) =
+        mpsc::channel();
     let (to_sim_pause_tx, to_sim_pause_rx): (Sender<bool>, Receiver<bool>) = mpsc::channel();
     let (from_sim_pause_tx, from_sim_pause_rx): (Sender<bool>, Receiver<bool>) = mpsc::channel();
 
@@ -35,26 +37,27 @@ fn main() {
             .exit_on_esc(true)
             .build()
             .unwrap();
-    
+
     let spawn_button = ui::Button::new(
         [50.0, 50.0],
         [100.0, 50.0],
         [0.2, 0.6, 0.8, 1.0],
-        "Spawn".to_string()
+        "Spawn".to_string(),
     );
 
     let pause_button = ui::Button::new(
         [450.0, 50.0],
         [100.0, 50.0],
         [0.5, 0.5, 0.2, 1.0],
-        "Pause".to_string()
+        "Pause".to_string(),
     );
 
     let mut glyphs = piston_window::Glyphs::new(
         "src/resources/FiraSans-Regular.ttf",
         window.create_texture_context(),
-        TextureSettings::new()
-    ).unwrap();
+        TextureSettings::new(),
+    )
+    .unwrap();
 
     // Spawn simulation thread
     thread::spawn(move || {
@@ -95,7 +98,11 @@ fn main() {
                     input_handler.handle_mouse_down(softbodies.clone());
 
                     //spawn a softbody if the spawn button is clicked
-                    spawn_button.handle_click_spawn(input_handler.mouse_pos, softbodies.clone(), &to_sim_tx);
+                    spawn_button.handle_click_spawn(
+                        input_handler.mouse_pos,
+                        softbodies.clone(),
+                        &to_sim_tx,
+                    );
                 }
                 pause = pause_button.handle_click_pause(input_handler.mouse_pos, pause);
                 to_sim_pause_tx.send(pause).unwrap();
@@ -118,9 +125,14 @@ fn main() {
             if let Some(mut softbodies) = from_sim_rx.try_iter().last() {
                 // Dragging logic
                 if input_handler.mouse_down {
-                    if let (Some(sb_idx), Some(pt_idx)) = (input_handler.softbody_index, input_handler.held_point_index) {
-                        if sb_idx < softbodies.softbodies.len() && pt_idx < softbodies.softbodies[sb_idx].points.len() {
-                            softbodies.softbodies[sb_idx].points[pt_idx].position = input_handler.mouse_pos;
+                    if let (Some(sb_idx), Some(pt_idx)) =
+                        (input_handler.softbody_index, input_handler.held_point_index)
+                    {
+                        if sb_idx < softbodies.softbodies.len()
+                            && pt_idx < softbodies.softbodies[sb_idx].points.len()
+                        {
+                            softbodies.softbodies[sb_idx].points[pt_idx].position =
+                                input_handler.mouse_pos;
                         }
                     }
                 }
