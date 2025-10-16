@@ -1,18 +1,15 @@
-use std::collections::HashSet;
-use piston_window::*;
-use std::sync::mpsc::{Receiver, Sender};
-use crate::simulation::{self, SoftBodyCollection};
+use crate::simulation::SoftBodyCollection;
 
-pub struct Input_Handler {
+pub struct InputHandler {
     pub mouse_pos: [f64; 2],
     pub mouse_down: bool,
     pub held_point_index: Option<usize>,
     pub softbody_index: Option<usize>,
 }
 
-impl Input_Handler {
+impl InputHandler {
     pub fn new() -> Self {
-        Input_Handler {
+        InputHandler {
             mouse_pos: [0.0, 0.0],
             mouse_down: false,
             held_point_index: None,
@@ -36,7 +33,7 @@ impl Input_Handler {
                 self.softbody_index = Some(sbi);
                 self.held_point_index = Some(pi);
                 found = true;
-                 break;
+                break;
             }
         }
         if !found {

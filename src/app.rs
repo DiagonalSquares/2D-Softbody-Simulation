@@ -1,5 +1,6 @@
-use crate::{render, simulation, ui, input};
+use crate::{simulation};
 
+#[allow(dead_code)]
 pub struct App {
     pub window_size: [f64; 2],
     pub mouse_pos: [f64; 2],
@@ -12,6 +13,7 @@ pub struct App {
     pub from_sim_rx: std::sync::mpsc::Receiver<simulation::SoftBodyCollection>,
 }
 
+#[allow(dead_code)]
 impl App {
     pub fn new() -> Self {
         let window_size = [800.0, 600.0];

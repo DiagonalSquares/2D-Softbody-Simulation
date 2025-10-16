@@ -63,7 +63,7 @@ impl Point {
     pub fn handle_edge_collision(&mut self, window_size: &[f64; 2]) {
         if self.position[0] < 0.0 {
             self.position[0] = 0.0;
-            self.velocity[0] *= -1.0; 
+            self.velocity[0] *= -1.0;
         } else if self.position[0] > window_size[0] {
             self.position[0] = window_size[0];
             self.velocity[0] *= -1.0;
@@ -71,10 +71,10 @@ impl Point {
 
         if self.position[1] < 0.0 {
             self.position[1] = 0.0;
-            self.velocity[1] *= -1.0; 
+            self.velocity[1] *= -1.0;
         } else if self.position[1] > window_size[1] {
             self.position[1] = window_size[1];
-            self.velocity[1] *= -1.0; 
+            self.velocity[1] *= -1.0;
         }
     }
 }
@@ -95,7 +95,7 @@ impl Spring {
             point2,
             rest_length,
             stiffness: 0.6, // less stiff = more fluid
-            damping: 0.4, // less damping = more fluid
+            damping: 0.4,   // less damping = more fluid
         }
     }
 }
@@ -117,13 +117,15 @@ impl SoftBody {
     pub fn new_square(pos: [f64; 2], size: f64, faces: i32) -> Self {
         let mut soft_body = SoftBody::new();
         let mass = 1.0;
-        let faces = faces+1;
+        let faces = faces + 1;
         let valocity_max = size / faces as f64 * 0.2;
         for i in 0..faces {
             for j in 0..faces {
                 let x = pos[0] + (i as f64) * size / (faces - 1) as f64;
                 let y = pos[1] + (j as f64) * size / (faces - 1) as f64;
-                soft_body.points.push(Point::new([x, y], mass, valocity_max));
+                soft_body
+                    .points
+                    .push(Point::new([x, y], mass, valocity_max));
             }
         }
 
@@ -132,11 +134,15 @@ impl SoftBody {
                 let idx = (i * faces + j) as usize;
                 if j < faces - 1 {
                     let right_idx = idx + 1;
-                    soft_body.springs.push(Spring::new(idx, right_idx, size / (faces - 1) as f64));
+                    soft_body
+                        .springs
+                        .push(Spring::new(idx, right_idx, size / (faces - 1) as f64));
                 }
                 if i < faces - 1 {
                     let down_idx = idx + faces as usize;
-                    soft_body.springs.push(Spring::new(idx, down_idx, size / (faces - 1) as f64));
+                    soft_body
+                        .springs
+                        .push(Spring::new(idx, down_idx, size / (faces - 1) as f64));
                 }
             }
         }
@@ -146,11 +152,19 @@ impl SoftBody {
                 let idx = (i * faces + j) as usize;
                 if i < faces - 1 && j < faces - 1 {
                     let down_right_idx = idx + faces as usize + 1;
-                    soft_body.springs.push(Spring::new(idx, down_right_idx, (size / (faces - 1) as f64) * (2f64).sqrt()));
+                    soft_body.springs.push(Spring::new(
+                        idx,
+                        down_right_idx,
+                        (size / (faces - 1) as f64) * (2f64).sqrt(),
+                    ));
                 }
                 if i < faces - 1 && j > 0 {
                     let down_left_idx = idx + faces as usize - 1;
-                    soft_body.springs.push(Spring::new(idx, down_left_idx, (size / (faces - 1) as f64) * (2f64).sqrt()));
+                    soft_body.springs.push(Spring::new(
+                        idx,
+                        down_left_idx,
+                        (size / (faces - 1) as f64) * (2f64).sqrt(),
+                    ));
                 }
             }
         }
@@ -158,14 +172,21 @@ impl SoftBody {
         soft_body
     }
 
+    #[allow(dead_code)]
     pub fn new_triangle(pos: [f64; 2]) -> Self {
         let mut soft_body = SoftBody::new();
         let idx1 = soft_body.points.len();
-        soft_body.points.push(Point::new([pos[0], pos[1]-15.0], 1.0, 100.0));
+        soft_body
+            .points
+            .push(Point::new([pos[0], pos[1] - 15.0], 1.0, 100.0));
         let idx2 = soft_body.points.len();
-        soft_body.points.push(Point::new([pos[0]+20.0, pos[1]], 1.0, 100.0));
+        soft_body
+            .points
+            .push(Point::new([pos[0] + 20.0, pos[1]], 1.0, 100.0));
         let idx3 = soft_body.points.len();
-        soft_body.points.push(Point::new([pos[0]-10.0, pos[1]], 1.0, 100.0));
+        soft_body
+            .points
+            .push(Point::new([pos[0] - 10.0, pos[1]], 1.0, 100.0));
 
         soft_body.springs.push(Spring::new(idx1, idx2, 100.0));
         soft_body.springs.push(Spring::new(idx2, idx3, 100.0));
@@ -194,15 +215,15 @@ impl SoftBody {
         }
         let distance = dist_sq.sqrt();
 
-        let stretch   = distance - spring.rest_length;
+        let stretch = distance - spring.rest_length;
         let force_mag = spring.stiffness * stretch;
         let fx = force_mag * dx / distance;
         let fy = force_mag * dy / distance;
 
-        p1.force[0] +=  fx * spring.damping;
-        p1.force[1] +=  fy * spring.damping;
-        p2.force[0] -=  fx * spring.damping;
-        p2.force[1] -=  fy * spring.damping;
+        p1.force[0] += fx * spring.damping;
+        p1.force[1] += fy * spring.damping;
+        p2.force[0] -= fx * spring.damping;
+        p2.force[1] -= fy * spring.damping;
     }
 
     pub fn self_point_collision(&mut self, point_index1: usize, point_index2: usize) {
@@ -222,7 +243,7 @@ impl SoftBody {
         }
         let distance = dist_sq.sqrt();
 
-        if distance < p1.max_velocity * 3.0{
+        if distance < p1.max_velocity * 3.0 {
             let overlap = p1.max_velocity * 3.0 - distance;
             let force_mag = overlap * 0.5;
             p1.force[0] -= force_mag * dx / distance;
