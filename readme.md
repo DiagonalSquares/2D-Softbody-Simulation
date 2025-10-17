@@ -16,6 +16,7 @@ This project aims to create a fast and efficient simulation of softbodies, accur
 
 ## Installation
 
+```bash
 # 1. Clone the repository
 git clone https://github.com/DiagonalSquares/2D-Softbody-Simulation.git
 
