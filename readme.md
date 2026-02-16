@@ -21,7 +21,7 @@ This project aims to create a fast and efficient simulation of softbodies, accur
 git clone https://github.com/DiagonalSquares/2D-Softbody-Simulation.git
 
 # 2. Navigate into the folder
-cd soft_body_sim_2d
+cd 2D-Softbody-Simulation
 
 # 3. Install dependencies
 cargo build
